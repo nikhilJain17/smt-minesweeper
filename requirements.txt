@@ -1,0 +1,37 @@
+Solving Minesweeper with SMT
+
+(partially solved) board --> [prgm] --> board annotated with safe spots to click
+
+--------------------------------------
+Translating from board to coordinates:
+--------------------------------------
+- (x,y,val)
+where val = Blank | Number
+    blank is if the spot has been clicked
+    number is what number the board shows (i.e. neighbors)
+
+---------------------
+Running SMT Solver
+---------------------
+The program tests all uncovered/possible locations for a bomb and tests if it could actually be a valid bomb spot.
+
+How does it test if a bomb could be there? 
+
+It constructs a system of equations from the known information, where variables represent cells and are either 0 or 1 depending on if there is a bomb there or not.
+
+For example, if cell (2,2) has a value of 3, then 3 bombs are around it.
+Then, we say that:
+   C_{1,1} + C_{1,2} + C_{1,3} 
+ + C_{2,1}           + C_{3,1}
+ + C_{3,1} + C_{3,2} + C_{3,3} = 3
+
+We construct equations for all uncovered cells, since these are the only cells for which we have information. Additionally, we place a bomb on one uncovered cell, and construct an equation for that cell as well. If there is a satisfying assignment of 0,1 for each cell such that the bomb could be on the test cell, then obviously don't click there. Otherwise, if it is unsat, then a bomb canNOT be there, so click.
+
+
+--------------------------------------
+Translating from coordinates to board
+--------------------------------------
+
+idk something with a nice gui overlaid on the board would be cool
+
+todo: look into some nice gui libraries (diagrams?)

@@ -1,4 +1,4 @@
---import Data.SBV
+import Data.SBV
 import Data.Char
 import Data.List
 import Data.IORef
@@ -8,7 +8,9 @@ import System.Random
 
 -- (x,y) numBombs
 type Coordinates = (Int, Int)
-data Cell = Cell Coordinates Int deriving (Show, Eq)
+data Cell = Cell { coords :: Coordinates
+                 , numBombs :: Int
+                 } deriving (Show, Eq)
 
 {- construct list of constraints corresponding to an individual cell
 @todo what is the "type" of a constraint?
@@ -47,20 +49,13 @@ actualBoard = [ [convertCoordinatesToCell (x,y) | y <- cols] | x <- rows]
 --getBombCells :: Int -> Int -> Int -> [Cell]
 
 -- given a coordinate, returns all adjacent coordinates on the board
--- For now, assume 5x5 board
 getNeighborCoordinates :: Coordinates -> [Coordinates]
-getNeighborCoordinates c = [(x,y) | x <- [0..4], y <- [0..4], adjacent c (x,y)]
+getNeighborCoordinates c = [(x,y) | x <- [0.. (boardWidth -1)], y <- [0..(boardLength)], adjacent c (x,y)]
     where
         adjacent :: Coordinates -> Coordinates -> Bool
         adjacent a@(ax, ay) b@(bx, by) = (abs(ax - bx) <= 1) && (abs(ay - by) <= 1) && (a /= b)
 
---Main method (accept the initial place, create board, take next place, repeat until death)
-
---main = do
---    putStrLn ("The board size is " ++  show boardLength ++ " by " ++ show boardWidth)
---    putStrLn "What is your first guess?"
---    firstGuess <- getLine
-
+-- given a string, returns the coordinate it represents
 convertStringToCoordinates :: String -> Coordinates
 convertStringToCoordinates input = (coordinates1, coordinates2)
     where
@@ -68,9 +63,11 @@ convertStringToCoordinates input = (coordinates1, coordinates2)
     coordinates1 = digitToInt (coordinates!!0)
     coordinates2 = digitToInt (coordinates!!1)
 
+--Given two lists, returns the number of matching elements
 countMatchingElements :: (Eq a) => [a] -> [a] -> Int
 countMatchingElements lst1 lst2 = length lst2 - length (lst2 \\ lst1)
 
+-- Given a coordinates and the locations of the bombs, returns a cell
 convertCoordinatesToCell :: Coordinates -> [Coordinates] -> Cell
 convertCoordinatesToCell coords bombCells
     | coords `elem` bombCells = Cell coords (-1)
@@ -83,11 +80,8 @@ convertCoordinatesToCell' bombCells coords = convertCoordinatesToCell coords bom
 
 convertCoordinatesToUserNumBombs :: [Coordinates] -> [Coordinates] -> Coordinates -> String
 convertCoordinatesToUserNumBombs bombCells guesses coords
-    | coords `elem` guesses = "|" ++ (show (convertCellToNumBombs (convertCoordinatesToCell coords bombCells))) ++ "|"
+    | coords `elem` guesses = "|" ++ (show (numBombs (convertCoordinatesToCell coords bombCells))) ++ "|"
     | otherwise = "|?|"
-
-convertCellToNumBombs :: Cell -> Int
-convertCellToNumBombs (Cell _ numBombs) = numBombs
 
 main = do
     putStrLn $ "The board's dimensions are " ++ show boardLength ++ " by " ++ show boardWidth
@@ -96,10 +90,11 @@ main = do
     let firstGuess = convertStringToCoordinates firstGuessString
     shuffledCoordinates <- shuffle allCoordinates
     let mineBombs = createMineBombs firstGuess shuffledCoordinates
-    putStrLn $ show mineBombs
+    putStrLn $ show mineBombs -- Used for debugging
     let guesses = [firstGuess]
     laterGuesses guesses mineBombs
 
+-- Given
 laterGuesses :: [Coordinates] -> [Coordinates] -> IO Bool
 laterGuesses guesses mineBombs =  do
     putStrLn $ boardString guesses mineBombs
@@ -113,6 +108,15 @@ laterGuesses guesses mineBombs =  do
         else if length newGuesses == boardLength * boardWidth - length mineBombs
         then return True
         else laterGuesses newGuesses mineBombs
+
+nextBestMove :: [Coordinates] -> [Coordinates] -> Maybe Coordinates
+nextBestMove guesses mineBombs
+    | found = return
+    | otherwise = Nothing
+    where
+    guessCells = map (convertCoordinatesToCell' mineBombs) guesses
+    guessNeighborCoords = map getNeighborCoordinates guesses
+
 
 
 checkHit:: Coordinates -> [Coordinates] -> Bool

@@ -41,36 +41,24 @@ cols = [0 .. (boardWidth - 1)]
 allCoordinates = [(x,y) | x <- rows, y <- cols]
 actualBoard = [ [convertCoordinatesToCell (x,y) | y <- cols] | x <- rows]
 
--- Need to make a shuffle list method
-
--- given a board's dimensions and number of bombs, return a list of random bomb cells
---getBombCells :: Int -> Int -> Int -> [Cell]
-
 -- given a coordinate, returns all adjacent coordinates on the board
--- For now, assume 5x5 board
 getNeighborCoordinates :: Coordinates -> [Coordinates]
 getNeighborCoordinates c = [(x,y) | x <- [0..4], y <- [0..4], adjacent c (x,y)]
     where
         adjacent :: Coordinates -> Coordinates -> Bool
         adjacent a@(ax, ay) b@(bx, by) = (abs(ax - bx) <= 1) && (abs(ay - by) <= 1) && (a /= b)
 
---Main method (accept the initial place, create board, take next place, repeat until death)
-
---main = do
---    putStrLn ("The board size is " ++  show boardLength ++ " by " ++ show boardWidth)
---    putStrLn "What is your first guess?"
---    firstGuess <- getLine
-
 convertStringToCoordinates :: String -> Coordinates
 convertStringToCoordinates input = (coordinates1, coordinates2)
     where
-    coordinates = filter isNumber input
-    coordinates1 = digitToInt (coordinates!!0)
-    coordinates2 = digitToInt (coordinates!!1)
+        coordinates = filter isNumber input
+        coordinates1 = digitToInt (coordinates!!0)
+        coordinates2 = digitToInt (coordinates!!1)
 
 countMatchingElements :: (Eq a) => [a] -> [a] -> Int
 countMatchingElements lst1 lst2 = length lst2 - length (lst2 \\ lst1)
 
+-- helper function to set up the board by setting up a single cell
 convertCoordinatesToCell :: Coordinates -> [Coordinates] -> Cell
 convertCoordinatesToCell coords bombCells
     | coords `elem` bombCells = Cell coords (-1)
@@ -78,9 +66,7 @@ convertCoordinatesToCell coords bombCells
     where neighborCells = getNeighborCoordinates coords
           numBombNeighbors = countMatchingElements bombCells neighborCells
 
-convertCoordinatesToCell' :: [Coordinates] -> Coordinates -> Cell
-convertCoordinatesToCell' bombCells coords = convertCoordinatesToCell coords bombCells
-
+-- process a users input
 convertCoordinatesToUserNumBombs :: [Coordinates] -> [Coordinates] -> Coordinates -> String
 convertCoordinatesToUserNumBombs bombCells guesses coords
     | coords `elem` guesses = "|" ++ (show (convertCellToNumBombs (convertCoordinatesToCell coords bombCells))) ++ "|"
@@ -151,3 +137,29 @@ createMineBombs firstGuess shuffled =
     let possibleCoordinates = filter (/= firstGuess) shuffled
     in take numBombs possibleCoordinates
 
+-------------------------------------------
+-- smt related stuff
+-------------------------------------------
+
+checkIfBombCandidate :: Coordinates -> SBool
+checkIfBombCandidate = undefined
+-- first, make all constraints possible from current state of board
+    -- a constraint is possible if we know the number of neighbors (i.e. )
+-- then, place bomb and sat it
+
+
+
+-- make a single equation from a cell 
+makeEquationFromCell :: Cells -> SBool
+makeEquation (Cell coords count) = undefined
+    where
+        numOfSurroundingBombs = undefined
+        freeVariables :: [] -- use sIntegers :: [String] -> Symbolic [SInteger]Source
+-- if cell has number:
+    -- sum of bombs around cell == cell number
+    -- cell with no bomb has value of zero
+    -- unopened cell is a free variable
+
+    
+-- do [x, y, z] <- sIntegers ["x", "y", "z"]
+-- solve [x .> 5, y + z .< x]

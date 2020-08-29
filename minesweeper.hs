@@ -5,6 +5,8 @@ import Data.IORef
 import Data.Array.IO
 import Control.Monad
 import System.Random
+import Data.SBV
+
 
 -- (x,y) numBombs
 type Coordinates = (Int, Int)
@@ -19,7 +21,7 @@ ex:
 -}
 -- takes in a cell
 -- returns a function from ....
--- how do we represent "variables"???
+-- how do we represent "variables"??? --> free variables
 -- use "forSome"
 -- ex:
 -- sat . forSome ["x", "y"] $ \ (x::SInteger) y ->
@@ -38,8 +40,41 @@ numBombs = 4
 rows = [0 .. (boardLength - 1)]
 cols = [0 .. (boardWidth - 1)]
 
+allCoordinates :: [Coordinates]
 allCoordinates = [(x,y) | x <- rows, y <- cols]
-actualBoard = [ [convertCoordinatesToCell (x,y) | y <- cols] | x <- rows]
+
+-- @TODO have some variable for bombs
+-- issue is that it is be generated after the user's first guess,
+-- since we don't want the user to hit a bomb on their first move
+
+----------------------------------------------------------
+-- Some Helper Functions
+----------------------------------------------------------
+
+-- given a cell, how many bombs are adjacent to it
+numOfSurroundingBombs :: Cell -> [Coordinates] -> Int
+numOfSurroundingBombs (Cell coords _) bombCoords = countMatchingElements (getNeighborCoordinates coords) (bombCoords)
+
+-- given a cell, how many of its neighbors are still covered (not selected)
+numOfUnknownNeighbors :: Cell -> [Coordinates] -> Int
+numOfUnknownNeighbors (Cell coords _) guesses = numOfNeighbors - numOfUncoveredNeighbors
+    where
+        numOfNeighbors :: Int
+        numOfNeighbors = length $ getNeighborCoordinates coords
+
+        numOfUncoveredNeighbors :: Int
+        numOfUncoveredNeighbors = countMatchingElements (getNeighborCoordinates coords) (guesses)
+
+
+-- given a cell, how many of its uncovered neighbors are bombs
+-- neighbors INTERSECT guesses INTERSECT bombs
+numOfKnownNeighborBombs :: Cell -> [Coordinates] -> [Coordinates] -> Int
+numOfKnownNeighborBombs (Cell coords count) bombs guesses =
+    length $ intersect (intersect (getNeighborCoordinates coords) guesses) bombs        
+----------------------------------------------------------
+-- Game Logic
+----------------------------------------------------------
+
 
 -- given a coordinate, returns all adjacent coordinates on the board
 getNeighborCoordinates :: Coordinates -> [Coordinates]
@@ -123,9 +158,9 @@ shuffle xs = do
         ar <- newArray n xs
         forM [1..n] $ \i -> do
             j <- randomRIO (i,n)
-            vi <- readArray ar i
-            vj <- readArray ar j
-            writeArray ar j vi
+            vi <- Data.Array.IO.readArray ar i
+            vj <- Data.Array.IO.readArray ar j
+            Data.Array.IO.writeArray ar j vi
             return vj
     where
         n = length xs
@@ -149,17 +184,42 @@ checkIfBombCandidate = undefined
 
 
 
+-- bork = do 
+--         x <- sIntegers ["x", "x"]
+--         constrain $ x!!0 .== (literal 10)
+        
+
 -- make a single equation from a cell 
-makeEquationFromCell :: Cells -> SBool
-makeEquation (Cell coords count) = undefined
+-- makeEquationFromCell :: Cell -> [Coordinates] -> [Coordinates] -> SBool -> ()
+makeConstraintFromCell c@(Cell coords count) bombCoords guesses =
+    do        
+        freeVariables <- sIntegers $ take unknownNeighbors (repeat "neighbor_has_bomb")
+        -- sat . forSome (take unknownNeighbors (repeat "neighbor_has_bomb")) 
+        mapM_ constrain $ (freeVariables!!0) .== ((fromIntegral (count - knownNeighborBombs) :: SInteger))
+        --     = constrain $ freeVariables!!0 .== (literal 10)
+    
     where
-        numOfSurroundingBombs = undefined
-        freeVariables :: [] -- use sIntegers :: [String] -> Symbolic [SInteger]Source
--- if cell has number:
+        knownNeighborBombs :: Int
+        knownNeighborBombs = (numOfKnownNeighborBombs c bombCoords guesses)
+
+        unknownNeighbors :: Int
+        unknownNeighbors = numOfUnknownNeighbors c guesses
+
+--------------------------------------------
+-- Random Testing Stuff
+--------------------------------------------
+testBombs = [(0,1), (1,0), (1,1), (4,4)]
+testCell = (Cell (0,0) 3)
+testGuesses = []
+
+test = sat $ do
+    makeConstraintFromCell testCell testBombs testGuesses
+    return sTrue
+-- if cell has number > 0:
     -- sum of bombs around cell == cell number
     -- cell with no bomb has value of zero
     -- unopened cell is a free variable
 
-    
+
 -- do [x, y, z] <- sIntegers ["x", "y", "z"]
 -- solve [x .> 5, y + z .< x]

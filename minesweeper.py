@@ -14,83 +14,92 @@ s = Solver()
 #     "?????211?",
 #     "?????????"]
 
+# board = [
+#     "0000001?", 
+#     "0111001?",
+#     "12?10011", 
+#     "?2110000", 
+#     "?1000000"
+# ]
+
+# board = [
+#     "?20",
+#     "?2?",
+#     "1??"
+# ]
+
 board = [
-    "?20",
-    "?2?",
-    "1??"
+    "?22??21?",
+    "??2222?1",
+    "22100111",
+    "00000000",
+    "00000000",
+    "11122111",
+    "?12??11?",
+    "????????"
 ]
 
-board_x = len(board)
-board_y = len(board[0])
-
+brows = len(board)
+bcols = len(board[0])
 
 def get_neighbors(row, col):
-    def is_adjacent(tx, ty):
-        return ((abs(row - tx) <= 1) and (abs(col - ty) <= 1)) and ((row, col) != (tx, ty))
-
     neighbors = []
-    for x in range(board_x):
-        for y in range(board_y):
-            if is_adjacent(x,y):
-                neighbors.append((x, y))
+    for i in [-1, 0, 1]:
+        for j in [-1, 0, 1]:
+            candidate = (row + i, col + j)
+            valid_row = (candidate[0] < len(board)) and (candidate[0] >= 0)
+            valid_col = (candidate[1] < len(board[0])) and (candidate[1] >= 0)
+            if valid_row and valid_col and candidate != (row, col):
+                neighbors.append(candidate)
     
     return neighbors
 
-def check_bomb(row, col):
-    # 1. (Symbols)
-    # each symbol is either 0 or 1 depending on if we know a bomb is on that square or not
-    symbols = [[Int(str(x) + ", " + str(y)) for x in range(board_x)] for y in range(board_y)] 
 
-    # initialize whatever variables we can
-    for x in range(board_x):
-        for y in range(board_y):
-            # if its a digit, then we know there isn't a bomb there, so we initialize to zero
-            if board[x][y].isdigit():
-                s.add(symbols[x][y] == 0)
-            # otherwise, it's a ? and we don't know if there is a bomb there or not
-            # obviously we don't have any uncovered cells that are bombs (because then the game would be over)
+def checkbomb(row, col):
+    s = Solver()
+
+    symbolic_vars = []
+    for r in range(brows):
+        symbolic_vars.append([])
     
+    for r in range(brows):
+        for c in range(bcols):
+            symbolic_vars[r].append(Int(str((r,c))))
 
+    # print(symbolic_vars)
 
-    # # 2. (Clauses)
-    # # construct the system of equations
-    for x in range(board_x):
-        for y in range(board_y):
-            # we can only construct an equation if the cell is uncovered and has a number (bc if it has a ? then the ? doesn't give us info)
-            if board[x][y].isdigit():
-                val = int(board[x][y])
+    bomb_constraint = (symbolic_vars[row][col] == 1)
+    s.add(bomb_constraint)
 
-                neighbor_coordinates = get_neighbors(x, y)
-                neighbor_symbols = []
-                for n in neighbor_coordinates:
-                    nx = n[0]
-                    ny = n[1]
-                    neighbor_symbols.append(symbols[nx][ny])
+    for r in range(brows):
+        for c in range(bcols):
+            indicator_constraint = Or(symbolic_vars[r][c] == 0, symbolic_vars[r][c] == 1)
+            s.add(indicator_constraint)
 
-                curr_clause = sum(neighbor_symbols) == val
-                s.add(curr_clause)
+            # if digit, no bomb present, but we have a number of neighboring bombs
+            if board[r][c].isdigit():
+                nobomb_constraint = (symbolic_vars[r][c] == 0)
+                s.add(nobomb_constraint)
 
-    # clause for placing bomb at candidate spot
-    s.add(symbols[row][col] == 1)
-
-    result = s.check()
-    if result == unsat:
-        print("No bomb at", row, col)
-    elif result == sat:
-        print("There is a bomb at ", row, col)
+                neighbor_coords = get_neighbors(r,c)
+                neighbor_symbols = [symbolic_vars[ny][nx] for ny, nx in neighbor_coords]
     
-
+                sum_constraint = sum(neighbor_symbols) == int(board[r][c])
+                s.add(sum_constraint)
+    
+    if s.check() == unsat:
+        print ("No bomb at", (row, col))
 
 def mn():
-    for x in range(board_x):
-        for y in range(board_y):
-            # only uncovered cells are candidates for bombs
-            if board[x][y] == "?":
-                check_bomb(x, y)
+    for row in range(brows):
+        for col in range(bcols):
+            if board[row][col] == "?":
+                checkbomb(row, col)
 
+def printboard():
+    for row in board:
+        row_str = "".join(["[" + i + "]" for i in row])
+        print(row_str)
 
-
-
-
-# References
-# http://www.cs.toronto.edu/~victorn/tutorials/z3_SAT_2019/index.html
+if __name__ == "__main__":
+    mn()
